@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npx date-fns:*)",
       "Bash(node -e \"const df = require\\('date-fns'\\); console.log\\(typeof df.getISOWeek\\);\")",
-      "Bash(node -e \"import\\('date-fns'\\).then\\(m => console.log\\('getISOWeek:', typeof m.getISOWeek\\)\\).catch\\(e => console.log\\(e.message\\)\\)\")"
+      "Bash(node -e \"import\\('date-fns'\\).then\\(m => console.log\\('getISOWeek:', typeof m.getISOWeek\\)\\).catch\\(e => console.log\\(e.message\\)\\)\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

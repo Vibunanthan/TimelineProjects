@@ -257,7 +257,7 @@ export function Toolbar() {
             {project && project.groups.length > 1 && (
               <div className="space-y-1.5">
                 <Label className="text-xs">Group</Label>
-                <Select value={newTaskGroupId} onValueChange={setNewTaskGroupId}>
+                <Select value={newTaskGroupId} onValueChange={(v) => v && setNewTaskGroupId(v)}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue placeholder="Select group" />
                   </SelectTrigger>
@@ -272,7 +272,7 @@ export function Toolbar() {
 
             <div className="space-y-1.5">
               <Label className="text-xs">Starts After (optional)</Label>
-              <Select value={newTaskPredecessor} onValueChange={setNewTaskPredecessor}>
+              <Select value={newTaskPredecessor} onValueChange={(v) => setNewTaskPredecessor(v ?? '__none__')}>
                 <SelectTrigger className="h-8 text-sm">
                   <SelectValue />
                 </SelectTrigger>
