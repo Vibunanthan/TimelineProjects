@@ -5,7 +5,46 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Paintbrush } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const COLOR_PALETTE = [
+  '#E74C3C', '#E91E63', '#9C27B0', '#673AB7',
+  '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4',
+  '#009688', '#4CAF50', '#8BC34A', '#CDDC39',
+  '#FFEB3B', '#FFC107', '#FF9800', '#FF5722',
+  '#795548', '#607D8B', '#9E9E9E', '#1A1A1A',
+];
+
+function ColorPalette({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-10 gap-1">
+        {COLOR_PALETTE.map((color) => (
+          <button
+            key={color}
+            className={cn(
+              'w-6 h-6 rounded border cursor-pointer transition-transform hover:scale-110',
+              value.toLowerCase() === color.toLowerCase()
+                ? 'border-foreground ring-2 ring-ring scale-110'
+                : 'border-border'
+            )}
+            style={{ backgroundColor: color }}
+            onClick={() => onChange(color)}
+            title={color}
+            type="button"
+          />
+        ))}
+      </div>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-8 text-sm"
+        placeholder="#hex"
+      />
+    </div>
+  );
+}
 
 export function EditPanel() {
   const project = useProjectStore((s) => s.project);
@@ -19,6 +58,7 @@ export function EditPanel() {
   const deleteTask = useProjectStore((s) => s.deleteTask);
   const deleteMilestone = useProjectStore((s) => s.deleteMilestone);
   const deleteGroup = useProjectStore((s) => s.deleteGroup);
+  const applyGroupColorToItems = useProjectStore((s) => s.applyGroupColorToItems);
 
   if (!project || !selectedId) return null;
 
@@ -106,19 +146,10 @@ export function EditPanel() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs">Color</Label>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="color"
-                    value={task.color}
-                    onChange={(e) => updateTask(task.id, { color: e.target.value })}
-                    className="h-8 w-8 rounded border border-border cursor-pointer"
-                  />
-                  <Input
-                    value={task.color}
-                    onChange={(e) => updateTask(task.id, { color: e.target.value })}
-                    className="h-8 text-sm flex-1"
-                  />
-                </div>
+                <ColorPalette
+                  value={task.color}
+                  onChange={(color) => updateTask(task.id, { color })}
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -214,19 +245,10 @@ export function EditPanel() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs">Color</Label>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="color"
-                    value={milestone.color}
-                    onChange={(e) => updateMilestone(milestone.id, { color: e.target.value })}
-                    className="h-8 w-8 rounded border border-border cursor-pointer"
-                  />
-                  <Input
-                    value={milestone.color}
-                    onChange={(e) => updateMilestone(milestone.id, { color: e.target.value })}
-                    className="h-8 text-sm flex-1"
-                  />
-                </div>
+                <ColorPalette
+                  value={milestone.color}
+                  onChange={(color) => updateMilestone(milestone.id, { color })}
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -280,20 +302,20 @@ export function EditPanel() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs">Color</Label>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="color"
-                    value={group.color}
-                    onChange={(e) => updateGroup(group.id, { color: e.target.value })}
-                    className="h-8 w-8 rounded border border-border cursor-pointer"
-                  />
-                  <Input
-                    value={group.color}
-                    onChange={(e) => updateGroup(group.id, { color: e.target.value })}
-                    className="h-8 text-sm flex-1"
-                  />
-                </div>
+                <ColorPalette
+                  value={group.color}
+                  onChange={(color) => updateGroup(group.id, { color })}
+                />
               </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                onClick={() => applyGroupColorToItems(group.id)}
+              >
+                <Paintbrush className="h-4 w-4 mr-1" /> Apply color to all tasks
+              </Button>
 
               <Separator />
 

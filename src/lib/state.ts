@@ -40,13 +40,15 @@ interface ProjectStore {
   deleteGroup: (id: string) => void;
   toggleGroupCollapse: (id: string) => void;
 
-  addTask: (groupId: string) => void;
+  addTask: (groupId: string, options?: { name?: string; start_date?: string; end_date?: string; dependencies?: string[] }) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
 
   addMilestone: (groupId: string) => void;
   updateMilestone: (id: string, updates: Partial<Milestone>) => void;
   deleteMilestone: (id: string) => void;
+
+  applyGroupColorToItems: (groupId: string) => void;
 
   // View
   setViewMode: (mode: ViewMode) => void;
@@ -216,6 +218,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     });
   },
 
+  applyGroupColorToItems: (groupId: string) => {
+    const { project } = get();
+    if (!project) return;
+    const group = project.groups.find((g) => g.id === groupId);
+    if (!group) return;
+    const prev = cloneProject(project);
+    set({
+      project: {
+        ...project,
+        tasks: project.tasks.map((t) =>
+          t.group_id === groupId ? { ...t, color: group.color } : t
+        ),
+        milestones: project.milestones.map((m) =>
+          m.group_id === groupId ? { ...m, color: group.color } : m
+        ),
+      },
+      isDirty: true,
+      undoStack: [...get().undoStack.slice(-49), prev],
+      redoStack: [],
+    });
+  },
+
   toggleGroupCollapse: (id) => {
     set((state) => {
       const next = new Set(state.collapsedGroups);
@@ -225,28 +249,32 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     });
   },
 
-  addTask: (groupId: string) => {
+  addTask: (groupId: string, options?: { name?: string; start_date?: string; end_date?: string; dependencies?: string[] }) => {
     const { project } = get();
     if (!project) return;
     const prev = cloneProject(project);
     const group = project.groups.find((g) => g.id === groupId);
-    const today = todayStr();
+
+    const startDate = options?.start_date || todayStr();
+    let endDate = options?.end_date;
+    if (!endDate) {
+      const s = new Date(startDate + 'T00:00:00');
+      const e = new Date(s);
+      e.setDate(e.getDate() + 7);
+      endDate = e.toISOString().split('T')[0];
+    }
+
     const newTask: Task = {
       id: generateId(),
-      name: 'New Task',
+      name: options?.name || 'New Task',
       group_id: groupId,
-      start_date: today,
-      end_date: todayStr(), // Will be set by adding 7 days
+      start_date: startDate,
+      end_date: endDate,
       color: group?.color || '#4A90D9',
       progress: 0,
-      dependencies: [],
+      dependencies: options?.dependencies || [],
       notes: '',
     };
-    // Set end date to 7 days from today
-    const start = new Date();
-    const end = new Date(start);
-    end.setDate(end.getDate() + 7);
-    newTask.end_date = end.toISOString().split('T')[0];
 
     set({
       project: { ...project, tasks: [...project.tasks, newTask] },

@@ -1,6 +1,6 @@
 import type { Task, Milestone, Group, HitRegion, RowLayout, ViewMode } from '@/lib/types';
 import { parseDate, isWeekendDay } from '@/lib/date-utils';
-import { addDays, format, differenceInDays, startOfMonth, eachMonthOfInterval, eachWeekOfInterval } from 'date-fns';
+import { addDays, format, differenceInDays, startOfMonth, eachMonthOfInterval, eachWeekOfInterval, getISOWeek } from 'date-fns';
 
 const ROW_HEIGHT = 36;
 const GROUP_ROW_HEIGHT = 32;
@@ -47,18 +47,23 @@ function getTimelineRange(tasks: Task[], milestones: Milestone[]): { start: Date
   if (dates.length === 0) {
     const today = new Date();
     return {
-      start: addDays(today, -30),
-      end: addDays(today, 90),
+      start: new Date(today.getFullYear(), 0, 1),
+      end: new Date(today.getFullYear(), 11, 31),
     };
   }
 
   const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
   const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
 
-  return {
-    start: addDays(minDate, -14),
-    end: addDays(maxDate, 30),
-  };
+  let start = addDays(minDate, -14);
+  let end = addDays(maxDate, 30);
+
+  // Ensure minimum 365-day span
+  if (differenceInDays(end, start) < 365) {
+    end = addDays(start, 365);
+  }
+
+  return { start, end };
 }
 
 function dateToX(date: Date, startDate: Date, pixelsPerDay: number): number {
@@ -243,7 +248,12 @@ function drawTimelineHeader(
     for (const weekStart of weeks) {
       const x = dateToX(weekStart, start, pixelsPerDay) - scrollX;
       if (x > -100 && x < canvasWidth) {
-        ctx.fillText(format(weekStart, 'MMM d'), x + 4, 38);
+        const weekNum = getISOWeek(weekStart);
+        const weekWidth = 7 * pixelsPerDay;
+        const label = weekWidth > 70
+          ? `W${weekNum} \u00B7 ${format(weekStart, 'MMM d')}`
+          : `W${weekNum}`;
+        ctx.fillText(label, x + 4, 38);
 
         ctx.strokeStyle = '#eeeeee';
         ctx.lineWidth = 0.5;

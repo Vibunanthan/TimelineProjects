@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useProjectStore } from '@/lib/state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
@@ -16,6 +17,10 @@ export function Toolbar() {
   const [newProjectName, setNewProjectName] = useState('');
   const [newGroupDialog, setNewGroupDialog] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [newTaskDialog, setNewTaskDialog] = useState(false);
+  const [newTaskName, setNewTaskName] = useState('');
+  const [newTaskPredecessor, setNewTaskPredecessor] = useState('__none__');
+  const [newTaskGroupId, setNewTaskGroupId] = useState('');
 
   const project = useProjectStore((s) => s.project);
   const isDirty = useProjectStore((s) => s.isDirty);
@@ -50,6 +55,32 @@ export function Toolbar() {
       setNewGroupDialog(false);
       setNewGroupName('');
     }
+  };
+
+  const handleAddTask = () => {
+    const groupId = newTaskGroupId || firstGroupId;
+    if (!groupId) return;
+
+    const options: { name?: string; start_date?: string; dependencies?: string[] } = {};
+    if (newTaskName.trim()) options.name = newTaskName.trim();
+
+    if (newTaskPredecessor && newTaskPredecessor !== '__none__') {
+      const predTask = project?.tasks.find((t) => t.id === newTaskPredecessor);
+      const predMilestone = project?.milestones.find((m) => m.id === newTaskPredecessor);
+
+      if (predTask?.end_date) {
+        options.start_date = predTask.end_date;
+      } else if (predMilestone?.date) {
+        options.start_date = predMilestone.date;
+      }
+      options.dependencies = [newTaskPredecessor];
+    }
+
+    addTask(groupId, options);
+    setNewTaskDialog(false);
+    setNewTaskName('');
+    setNewTaskPredecessor('__none__');
+    setNewTaskGroupId('');
   };
 
   return (
@@ -98,7 +129,10 @@ export function Toolbar() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => firstGroupId && addTask(firstGroupId)}
+          onClick={() => {
+            setNewTaskGroupId(firstGroupId || '');
+            setNewTaskDialog(true);
+          }}
           disabled={!project || !firstGroupId}
           title="Add Task"
         >
@@ -190,6 +224,76 @@ export function Toolbar() {
             </Button>
             <Button onClick={handleAddGroup} disabled={!newGroupName.trim()}>
               Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Task Dialog */}
+      <Dialog open={newTaskDialog} onOpenChange={(open) => {
+        setNewTaskDialog(open);
+        if (!open) {
+          setNewTaskName('');
+          setNewTaskPredecessor('__none__');
+          setNewTaskGroupId('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New Task</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Task Name</Label>
+              <Input
+                placeholder="Task name"
+                value={newTaskName}
+                onChange={(e) => setNewTaskName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+                autoFocus
+              />
+            </div>
+
+            {project && project.groups.length > 1 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Group</Label>
+                <Select value={newTaskGroupId} onValueChange={setNewTaskGroupId}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Select group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {project.groups.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Starts After (optional)</Label>
+              <Select value={newTaskPredecessor} onValueChange={setNewTaskPredecessor}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  {project?.tasks.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                  {project?.milestones.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewTaskDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddTask}>
+              Add Task
             </Button>
           </DialogFooter>
         </DialogContent>

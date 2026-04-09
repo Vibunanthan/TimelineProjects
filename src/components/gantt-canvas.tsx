@@ -8,6 +8,7 @@ export function GanttCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<GanttInteractionHandler | null>(null);
   const renderResultRef = useRef<RenderResult | null>(null);
+  const doRenderRef = useRef<() => void>(() => {});
 
   const project = useProjectStore((s) => s.project);
   const selectedId = useProjectStore((s) => s.selectedId);
@@ -80,6 +81,9 @@ export function GanttCanvas() {
     }
   }, [project, selectedId, pixelsPerDay, scrollX, scrollY, collapsedGroups, viewMode]);
 
+  // Keep ref in sync so the interaction handler always calls the latest render
+  doRenderRef.current = doRender;
+
   // Set up interaction handler
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -103,7 +107,7 @@ export function GanttCanvas() {
         toggleGroupCollapse(id);
       },
       onRequestRender: () => {
-        requestAnimationFrame(doRender);
+        requestAnimationFrame(() => doRenderRef.current());
       },
       getPixelsPerDay: () => useProjectStore.getState().pixelsPerDay,
       getTimelineStartDate: () => {
