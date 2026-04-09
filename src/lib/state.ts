@@ -1,7 +1,40 @@
 import { create } from 'zustand';
 import type { Task, Milestone, Group, ProjectData, ViewMode } from './types';
-import { generateId, todayStr } from './date-utils';
+import { generateId, todayStr, daysBetween, addDaysToDate } from './date-utils';
 import { bridge } from './pywebview-bridge';
+
+/**
+ * Propagate date changes through starts_after links.
+ * When a task/milestone's end date changes, all tasks that have
+ * starts_after pointing to it get their start_date set to the new
+ * end date, preserving their duration. This cascades recursively.
+ */
+function propagateStartAfterLinks(tasks: Task[], changedId: string, newEndDate: string): Task[] {
+  const queue = [{ id: changedId, endDate: newEndDate }];
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    const { id, endDate } = queue.shift()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
+
+    for (let i = 0; i < tasks.length; i++) {
+      const t = tasks[i];
+      if (t.starts_after === id) {
+        const duration = daysBetween(t.start_date, t.end_date);
+        const newStart = endDate;
+        const newEnd = addDaysToDate(newStart, duration);
+        tasks = tasks.map((task) =>
+          task.id === t.id ? { ...task, start_date: newStart, end_date: newEnd } : task
+        );
+        // Cascade: this task's end changed too, propagate to its dependents
+        queue.push({ id: t.id, endDate: newEnd });
+      }
+    }
+  }
+
+  return tasks;
+}
 
 interface ProjectStore {
   // Project data
@@ -40,7 +73,7 @@ interface ProjectStore {
   deleteGroup: (id: string) => void;
   toggleGroupCollapse: (id: string) => void;
 
-  addTask: (groupId: string, options?: { name?: string; start_date?: string; end_date?: string; dependencies?: string[] }) => void;
+  addTask: (groupId: string, options?: { name?: string; start_date?: string; end_date?: string; dependencies?: string[]; starts_after?: string }) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
 
@@ -249,7 +282,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     });
   },
 
-  addTask: (groupId: string, options?: { name?: string; start_date?: string; end_date?: string; dependencies?: string[] }) => {
+  addTask: (groupId: string, options?: { name?: string; start_date?: string; end_date?: string; dependencies?: string[]; starts_after?: string }) => {
     const { project } = get();
     if (!project) return;
     const prev = cloneProject(project);
@@ -273,6 +306,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       color: group?.color || '#4A90D9',
       progress: 0,
       dependencies: options?.dependencies || [],
+      starts_after: options?.starts_after,
       notes: '',
     };
 
@@ -291,11 +325,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { project } = get();
     if (!project) return;
     const prev = cloneProject(project);
+
+    let tasks = project.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t));
+
+    // If end_date changed, propagate to tasks linked via starts_after
+    const updatedTask = tasks.find((t) => t.id === id);
+    if (updatedTask && updates.end_date) {
+      tasks = propagateStartAfterLinks(tasks, id, updatedTask.end_date);
+    }
+    // If the whole task was moved (start + end changed), also propagate
+    if (updatedTask && updates.start_date && updates.end_date) {
+      tasks = propagateStartAfterLinks(tasks, id, updatedTask.end_date);
+    }
+
     set({
-      project: {
-        ...project,
-        tasks: project.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
-      },
+      project: { ...project, tasks },
       isDirty: true,
       undoStack: [...get().undoStack.slice(-49), prev],
       redoStack: [],
@@ -306,7 +350,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { project } = get();
     if (!project) return;
     const prev = cloneProject(project);
-    // Also remove this task from any dependency lists
+    // Also remove this task from any dependency lists and starts_after links
     set({
       project: {
         ...project,
@@ -315,6 +359,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           .map((t) => ({
             ...t,
             dependencies: t.dependencies.filter((d) => d !== id),
+            starts_after: t.starts_after === id ? undefined : t.starts_after,
           })),
         milestones: project.milestones.map((m) => ({
           ...m,
@@ -357,11 +402,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { project } = get();
     if (!project) return;
     const prev = cloneProject(project);
+
+    const milestones = project.milestones.map((m) => (m.id === id ? { ...m, ...updates } : m));
+
+    // If milestone date changed, propagate to tasks linked via starts_after
+    let tasks = project.tasks;
+    if (updates.date) {
+      const updatedMs = milestones.find((m) => m.id === id);
+      if (updatedMs) {
+        tasks = propagateStartAfterLinks(tasks, id, updatedMs.date);
+      }
+    }
+
     set({
-      project: {
-        ...project,
-        milestones: project.milestones.map((m) => (m.id === id ? { ...m, ...updates } : m)),
-      },
+      project: { ...project, milestones, tasks },
       isDirty: true,
       undoStack: [...get().undoStack.slice(-49), prev],
       redoStack: [],
@@ -379,6 +433,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         tasks: project.tasks.map((t) => ({
           ...t,
           dependencies: t.dependencies.filter((d) => d !== id),
+          starts_after: t.starts_after === id ? undefined : t.starts_after,
         })),
       },
       isDirty: true,

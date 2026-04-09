@@ -92,6 +92,22 @@ export function EditPanel() {
                 />
               </div>
 
+              {task.starts_after && (() => {
+                const pred = project.tasks.find((t) => t.id === task.starts_after)
+                  || project.milestones.find((m) => m.id === task.starts_after);
+                return pred ? (
+                  <div className="text-xs text-muted-foreground bg-muted rounded-md px-2 py-1.5">
+                    Linked: starts after <span className="font-medium text-foreground">{pred.name}</span>
+                    <button
+                      className="ml-2 text-destructive hover:underline"
+                      onClick={() => updateTask(task.id, { starts_after: undefined })}
+                    >
+                      Unlink
+                    </button>
+                  </div>
+                ) : null;
+              })()}
+
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Start Date</Label>
@@ -100,6 +116,8 @@ export function EditPanel() {
                     value={task.start_date}
                     onChange={(e) => updateTask(task.id, { start_date: e.target.value })}
                     className="h-8 text-sm"
+                    disabled={!!task.starts_after}
+                    title={task.starts_after ? 'Linked to predecessor — unlink to edit manually' : undefined}
                   />
                 </div>
                 <div className="space-y-1.5">

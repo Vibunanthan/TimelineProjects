@@ -61,7 +61,7 @@ export function Toolbar() {
     const groupId = newTaskGroupId || firstGroupId;
     if (!groupId) return;
 
-    const options: { name?: string; start_date?: string; dependencies?: string[] } = {};
+    const options: { name?: string; start_date?: string; dependencies?: string[]; starts_after?: string } = {};
     if (newTaskName.trim()) options.name = newTaskName.trim();
 
     if (newTaskPredecessor && newTaskPredecessor !== '__none__') {
@@ -74,6 +74,7 @@ export function Toolbar() {
         options.start_date = predMilestone.date;
       }
       options.dependencies = [newTaskPredecessor];
+      options.starts_after = newTaskPredecessor;
     }
 
     addTask(groupId, options);
