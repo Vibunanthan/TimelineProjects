@@ -7,9 +7,21 @@ const GROUP_ROW_HEIGHT = 32;
 const BAR_HEIGHT = 22;
 const BAR_Y_OFFSET = (ROW_HEIGHT - BAR_HEIGHT) / 2;
 const MILESTONE_SIZE = 14;
-const HEADER_HEIGHT = 50;
+const HEADER_HEIGHT = 64;
 const BAR_RADIUS = 4;
 const EDGE_WIDTH = 10;
+
+const COMPLETED_COLOR = '#22C55E';
+const OVERDUE_COLOR = '#EF4444';
+
+function getTaskDisplayColor(task: Task): string {
+  if (task.completed) return COMPLETED_COLOR;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = parseDate(task.end_date);
+  if (endDate < today) return OVERDUE_COLOR;
+  return task.color;
+}
 
 export interface RenderConfig {
   tasks: Task[];
@@ -187,7 +199,6 @@ export function renderGantt(
   drawDependencyArrows(ctx, tasks, milestones, rowLayouts, timelineStart, pixelsPerDay, scrollX, scrollY);
 
   // Draw header background overlay to cover scrolled content
-  ctx.fillStyle = '#fafafa';
   ctx.fillRect(0, 0, canvasWidth, HEADER_HEIGHT);
   drawTimelineHeader(ctx, timelineStart, timelineEnd, pixelsPerDay, scrollX, canvasWidth, viewMode);
 
@@ -205,11 +216,16 @@ function drawTimelineHeader(
   canvasWidth: number,
   _viewMode: ViewMode
 ) {
-  // Header background
-  ctx.fillStyle = '#ffffff';
+  // Header background with gradient
+  const headerGrad = ctx.createLinearGradient(0, 0, 0, HEADER_HEIGHT);
+  headerGrad.addColorStop(0, '#1e293b');
+  headerGrad.addColorStop(1, '#334155');
+  ctx.fillStyle = headerGrad;
   ctx.fillRect(0, 0, canvasWidth, HEADER_HEIGHT);
-  ctx.strokeStyle = '#e0e0e0';
-  ctx.lineWidth = 1;
+
+  // Bottom border
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(0, HEADER_HEIGHT);
   ctx.lineTo(canvasWidth, HEADER_HEIGHT);
@@ -217,8 +233,6 @@ function drawTimelineHeader(
 
   // Month labels (top row)
   const months = eachMonthOfInterval({ start, end });
-  ctx.fillStyle = '#1a1a1a';
-  ctx.font = '600 12px "Segoe UI", system-ui, sans-serif';
   ctx.textAlign = 'left';
 
   for (const monthStart of months) {
@@ -227,10 +241,16 @@ function drawTimelineHeader(
     const monthWidth = dateToX(monthEnd, start, pixelsPerDay) - scrollX - x;
 
     if (x + monthWidth > 0 && x < canvasWidth) {
-      ctx.fillText(format(monthStart, 'MMMM yyyy'), Math.max(x + 8, 4), 18);
+      // Month background highlight
+      ctx.fillStyle = '#ffffff08';
+      ctx.fillRect(x, 0, monthWidth, 28);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '700 13px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText(format(monthStart, 'MMMM yyyy'), Math.max(x + 10, 6), 19);
 
       // Month divider
-      ctx.strokeStyle = '#d0d0d0';
+      ctx.strokeStyle = '#475569';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(x, 0);
@@ -242,23 +262,36 @@ function drawTimelineHeader(
   // Week labels (bottom row) if zoom is appropriate
   if (pixelsPerDay >= 8) {
     const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
-    ctx.fillStyle = '#666666';
-    ctx.font = '400 10px "Segoe UI", system-ui, sans-serif';
 
     for (const weekStart of weeks) {
       const x = dateToX(weekStart, start, pixelsPerDay) - scrollX;
       if (x > -100 && x < canvasWidth) {
         const weekNum = getISOWeek(weekStart);
         const weekWidth = 7 * pixelsPerDay;
-        const label = weekWidth > 70
-          ? `W${weekNum} \u00B7 ${format(weekStart, 'MMM d')}`
-          : `W${weekNum}`;
-        ctx.fillText(label, x + 4, 38);
 
-        ctx.strokeStyle = '#eeeeee';
+        // Week number badge
+        const badgeText = `W${weekNum}`;
+        ctx.font = '700 11px "Segoe UI", system-ui, sans-serif';
+        const badgeWidth = ctx.measureText(badgeText).width + 8;
+        ctx.fillStyle = '#3b82f6';
+        ctx.beginPath();
+        roundRect(ctx, x + 3, 30, badgeWidth, 16, 3);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(badgeText, x + 7, 42);
+
+        // Date label next to badge
+        if (weekWidth > 70) {
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '400 10px "Segoe UI", system-ui, sans-serif';
+          ctx.fillText(format(weekStart, 'MMM d'), x + badgeWidth + 6, 42);
+        }
+
+        // Week divider
+        ctx.strokeStyle = '#475569';
         ctx.lineWidth = 0.5;
         ctx.beginPath();
-        ctx.moveTo(x, 25);
+        ctx.moveTo(x, 28);
         ctx.lineTo(x, HEADER_HEIGHT);
         ctx.stroke();
       }
@@ -268,15 +301,16 @@ function drawTimelineHeader(
   // Day labels if very zoomed in
   if (pixelsPerDay >= 25) {
     const totalDays = differenceInDays(end, start);
-    ctx.fillStyle = '#999999';
-    ctx.font = '400 9px "Segoe UI", system-ui, sans-serif';
+    ctx.font = '500 9px "Segoe UI", system-ui, sans-serif';
     ctx.textAlign = 'center';
 
     for (let d = 0; d < totalDays; d++) {
       const date = addDays(start, d);
       const x = d * pixelsPerDay - scrollX + pixelsPerDay / 2;
       if (x > 0 && x < canvasWidth) {
-        ctx.fillText(format(date, 'd'), x, 46);
+        const isWeekend = isWeekendDay(date);
+        ctx.fillStyle = isWeekend ? '#64748b' : '#cbd5e1';
+        ctx.fillText(format(date, 'd'), x, 58);
       }
     }
     ctx.textAlign = 'left';
@@ -335,6 +369,8 @@ function drawTaskBar(
   const barWidth = Math.max(endX - startX, pixelsPerDay); // Minimum 1 day width
   const barY = y + BAR_Y_OFFSET;
 
+  const displayColor = getTaskDisplayColor(task);
+
   // Selection highlight
   if (selected) {
     ctx.fillStyle = '#0078d420';
@@ -342,32 +378,52 @@ function drawTaskBar(
   }
 
   // Bar background
-  ctx.fillStyle = task.color + '30';
+  ctx.fillStyle = displayColor + '30';
   ctx.beginPath();
   roundRect(ctx, startX, barY, barWidth, BAR_HEIGHT, BAR_RADIUS);
   ctx.fill();
 
-  // Progress fill
-  if (task.progress > 0) {
+  // Completed: fill entire bar with green tint
+  if (task.completed) {
+    ctx.fillStyle = displayColor + '50';
+    ctx.beginPath();
+    roundRect(ctx, startX, barY, barWidth, BAR_HEIGHT, BAR_RADIUS);
+    ctx.fill();
+  } else if (task.progress > 0) {
+    // Progress fill
     const progressWidth = (barWidth * task.progress) / 100;
-    ctx.fillStyle = task.color;
+    ctx.fillStyle = displayColor;
     ctx.beginPath();
     roundRect(ctx, startX, barY, progressWidth, BAR_HEIGHT, BAR_RADIUS);
     ctx.fill();
   }
 
   // Border
-  ctx.strokeStyle = task.color;
+  ctx.strokeStyle = displayColor;
   ctx.lineWidth = selected ? 2 : 1;
   ctx.beginPath();
   roundRect(ctx, startX, barY, barWidth, BAR_HEIGHT, BAR_RADIUS);
   ctx.stroke();
 
+  // Completed checkmark
+  if (task.completed) {
+    const checkX = startX + 4;
+    const checkY = barY + BAR_HEIGHT / 2;
+    ctx.strokeStyle = COMPLETED_COLOR;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(checkX, checkY);
+    ctx.lineTo(checkX + 4, checkY + 4);
+    ctx.lineTo(checkX + 10, checkY - 4);
+    ctx.stroke();
+  }
+
   // Task name
-  ctx.fillStyle = '#1a1a1a';
-  ctx.font = '400 11px "Segoe UI", system-ui, sans-serif';
-  const textX = startX + 6;
-  const maxTextWidth = barWidth - 12;
+  const nameOffset = task.completed ? 18 : 6;
+  ctx.fillStyle = task.completed ? '#166534' : '#1a1a1a';
+  ctx.font = task.completed ? 'italic 400 11px "Segoe UI", system-ui, sans-serif' : '400 11px "Segoe UI", system-ui, sans-serif';
+  const textX = startX + nameOffset;
+  const maxTextWidth = barWidth - nameOffset - 6;
   if (maxTextWidth > 20) {
     ctx.save();
     ctx.beginPath();

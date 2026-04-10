@@ -9,6 +9,7 @@ export interface Task {
   dependencies: string[];
   starts_after?: string; // ID of predecessor task/milestone — permanently links start_date to predecessor's end_date
   notes: string;
+  completed?: boolean;
 }
 
 export interface Milestone {

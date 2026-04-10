@@ -308,6 +308,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       dependencies: options?.dependencies || [],
       starts_after: options?.starts_after,
       notes: '',
+      completed: false,
     };
 
     set({

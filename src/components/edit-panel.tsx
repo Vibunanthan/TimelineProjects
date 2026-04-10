@@ -150,6 +150,18 @@ export function EditPanel() {
                 </Select>
               </div>
 
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!task.completed}
+                    onChange={(e) => updateTask(task.id, { completed: e.target.checked })}
+                    className="rounded"
+                  />
+                  <span className="text-xs font-medium">Completed</span>
+                </label>
+              </div>
+
               <div className="space-y-1.5">
                 <Label className="text-xs">Progress (%)</Label>
                 <Input
