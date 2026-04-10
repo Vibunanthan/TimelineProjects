@@ -216,19 +216,24 @@ function drawTimelineHeader(
   canvasWidth: number,
   _viewMode: ViewMode
 ) {
-  // Header background with gradient
-  const headerGrad = ctx.createLinearGradient(0, 0, 0, HEADER_HEIGHT);
-  headerGrad.addColorStop(0, '#1e293b');
-  headerGrad.addColorStop(1, '#334155');
-  ctx.fillStyle = headerGrad;
+  // Header background — white
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvasWidth, HEADER_HEIGHT);
 
-  // Bottom border
-  ctx.strokeStyle = '#475569';
+  // Bottom border — stronger line
+  ctx.strokeStyle = '#94a3b8';
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(0, HEADER_HEIGHT);
   ctx.lineTo(canvasWidth, HEADER_HEIGHT);
+  ctx.stroke();
+
+  // Subtle separator between month row and week row
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, 28);
+  ctx.lineTo(canvasWidth, 28);
   ctx.stroke();
 
   // Month labels (top row)
@@ -241,16 +246,12 @@ function drawTimelineHeader(
     const monthWidth = dateToX(monthEnd, start, pixelsPerDay) - scrollX - x;
 
     if (x + monthWidth > 0 && x < canvasWidth) {
-      // Month background highlight
-      ctx.fillStyle = '#ffffff08';
-      ctx.fillRect(x, 0, monthWidth, 28);
-
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = '700 13px "Segoe UI", system-ui, sans-serif';
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '800 14px "Segoe UI", system-ui, sans-serif';
       ctx.fillText(format(monthStart, 'MMMM yyyy'), Math.max(x + 10, 6), 19);
 
       // Month divider
-      ctx.strokeStyle = '#475569';
+      ctx.strokeStyle = '#cbd5e1';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(x, 0);
@@ -273,22 +274,22 @@ function drawTimelineHeader(
         const badgeText = `W${weekNum}`;
         ctx.font = '700 11px "Segoe UI", system-ui, sans-serif';
         const badgeWidth = ctx.measureText(badgeText).width + 8;
-        ctx.fillStyle = '#3b82f6';
+        ctx.fillStyle = '#2563eb';
         ctx.beginPath();
-        roundRect(ctx, x + 3, 30, badgeWidth, 16, 3);
+        roundRect(ctx, x + 3, 32, badgeWidth, 16, 3);
         ctx.fill();
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(badgeText, x + 7, 42);
+        ctx.fillText(badgeText, x + 7, 44);
 
         // Date label next to badge
         if (weekWidth > 70) {
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = '400 10px "Segoe UI", system-ui, sans-serif';
-          ctx.fillText(format(weekStart, 'MMM d'), x + badgeWidth + 6, 42);
+          ctx.fillStyle = '#475569';
+          ctx.font = '500 10px "Segoe UI", system-ui, sans-serif';
+          ctx.fillText(format(weekStart, 'MMM d'), x + badgeWidth + 6, 44);
         }
 
         // Week divider
-        ctx.strokeStyle = '#475569';
+        ctx.strokeStyle = '#e2e8f0';
         ctx.lineWidth = 0.5;
         ctx.beginPath();
         ctx.moveTo(x, 28);
@@ -301,7 +302,7 @@ function drawTimelineHeader(
   // Day labels if very zoomed in
   if (pixelsPerDay >= 25) {
     const totalDays = differenceInDays(end, start);
-    ctx.font = '500 9px "Segoe UI", system-ui, sans-serif';
+    ctx.font = '600 10px "Segoe UI", system-ui, sans-serif';
     ctx.textAlign = 'center';
 
     for (let d = 0; d < totalDays; d++) {
@@ -309,7 +310,7 @@ function drawTimelineHeader(
       const x = d * pixelsPerDay - scrollX + pixelsPerDay / 2;
       if (x > 0 && x < canvasWidth) {
         const isWeekend = isWeekendDay(date);
-        ctx.fillStyle = isWeekend ? '#64748b' : '#cbd5e1';
+        ctx.fillStyle = isWeekend ? '#94a3b8' : '#334155';
         ctx.fillText(format(date, 'd'), x, 58);
       }
     }

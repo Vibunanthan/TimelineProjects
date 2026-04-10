@@ -32,8 +32,8 @@ export function TaskList() {
     <div
       className="w-64 border-r border-border bg-card flex flex-col shrink-0 overflow-hidden"
     >
-      <div className="h-[64px] border-b border-border flex items-center px-3 shrink-0 bg-slate-800">
-        <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider">Tasks</span>
+      <div className="h-[64px] border-b border-border flex items-center px-3 shrink-0">
+        <span className="text-sm font-bold text-foreground uppercase tracking-wider">Tasks</span>
       </div>
       <div
         className="flex-1 overflow-y-auto"

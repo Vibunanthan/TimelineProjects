@@ -125,7 +125,12 @@ export function EditPanel() {
                   <Input
                     type="date"
                     value={task.end_date}
-                    onChange={(e) => updateTask(task.id, { end_date: e.target.value })}
+                    min={task.start_date}
+                    onChange={(e) => {
+                      if (e.target.value >= task.start_date) {
+                        updateTask(task.id, { end_date: e.target.value });
+                      }
+                    }}
                     className="h-8 text-sm"
                   />
                 </div>

@@ -260,7 +260,7 @@ export function Toolbar() {
                 <Label className="text-xs">Group</Label>
                 <Select value={newTaskGroupId} onValueChange={(v) => v && setNewTaskGroupId(v)}>
                   <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="Select group" />
+                    <span>{project.groups.find(g => g.id === newTaskGroupId)?.name || 'Select group'}</span>
                   </SelectTrigger>
                   <SelectContent>
                     {project.groups.map((g) => (
@@ -275,7 +275,12 @@ export function Toolbar() {
               <Label className="text-xs">Starts After (optional)</Label>
               <Select value={newTaskPredecessor} onValueChange={(v) => setNewTaskPredecessor(v ?? '__none__')}>
                 <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
+                  <span>{
+                    newTaskPredecessor === '__none__' ? 'None'
+                    : project?.tasks.find(t => t.id === newTaskPredecessor)?.name
+                      ?? project?.milestones.find(m => m.id === newTaskPredecessor)?.name
+                      ?? 'None'
+                  }</span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">None</SelectItem>

@@ -325,6 +325,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   updateTask: (id, updates) => {
     const { project } = get();
     if (!project) return;
+
+    // Prevent end_date from being set before start_date
+    if (updates.end_date) {
+      const task = project.tasks.find((t) => t.id === id);
+      const startDate = updates.start_date || task?.start_date;
+      if (startDate && updates.end_date < startDate) return;
+    }
+
     const prev = cloneProject(project);
 
     let tasks = project.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t));
